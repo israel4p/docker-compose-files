@@ -1,2 +1,3 @@
-# docker-compose-files
-Docker Compose Files
+# Docker Compose Files
+
+Edit the .env file
