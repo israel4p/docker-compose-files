@@ -1,0 +1,107 @@
+version: '3.8'
+
+services:
+  zabbix-db:
+    image: mariadb:${MYSQL_TAG}
+    container_name: zabbix-db
+    restart: always
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8 --collation-server=utf8_bin
+    volumes:
+      - db:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: zabbix
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    networks:
+      net_zabbix:
+        aliases:
+          - zabbix-db
+
+  zabbix-server:
+    image: zabbix/zabbix-server-mysql:${ZBX_SERVER_TAG}
+    container_name: zabbix-server
+    restart: always
+    depends_on:
+      - zabbix-db
+    volumes:
+      - alertscripts:/usr/lib/zabbix/alertscripts
+      - externalscripts:/usr/lib/zabbix/externalscripts
+      - enc:/var/lib/zabbix/enc
+      - export:/var/lib/zabbix/export
+      - mibs:/var/lib/zabbix/mibs
+      - modules:/var/lib/zabbix/modules
+      - snmptraps:/var/lib/zabbix/snmptraps
+      - ssh_keys:/var/lib/zabbix/ssh_keys
+      - ssl_certs:/var/lib/zabbix/ssl/certs
+      - ssl_keys:/var/lib/zabbix/ssl/keys
+      - ssl_ca:/var/lib/zabbix/ssl/ssl_ca
+    environment:
+      DB_SERVER_HOST: zabbix-db
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      ZBX_SERVER_NAME: ${ZBX_SERVER_NAME}
+      ZBX_CACHESIZE: ${CACHESIZE}
+    networks:
+      net_zabbix:
+        aliases:
+          - zabbix-server
+
+  zabbix-web:
+    image: zabbix/zabbix-web-nginx-mysql:${ZBX_WEB_TAG}
+    container_name: zabbix-web
+    restart: always
+    depends_on:
+      - zabbix-db
+      - zabbix-server
+    volumes:
+      - web:/etc/ssl/nginx
+    environment:
+      DB_SERVER_HOST: zabbix-db
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      ZBX_SERVER_HOST: zabbix-server
+      PHP_TZ: America/Sao_Paulo
+      ZBX_SERVER_NAME: ${ZBX_SERVER_NAME}
+    ports:
+      - 8080:8080
+    networks:
+      net_zabbix:
+        aliases:
+          - zabbix-web
+  grafana:
+    image: grafana/grafana:${GRAFANA_TAG}
+    container_name: grafana
+    restart: always
+    volumes:
+      - grafana_lib:/var/lib/grafana
+      - grafana_log:/var/log/grafana
+    environment:
+      GF_INSTALL_PLUGINS: "grafana-clock-panel,briangann-gauge-panel,alexanderzobnin-zabbix-app"
+      GF_SERVER_HTTP_PORT: 3000
+    networks:
+      net_zabbix:
+        aliases:
+          - grafana
+
+networks:
+  net_zabbix:
+    driver: bridge
+    name: net_zabbix
+
+volumes:
+  alertscripts:
+  externalscripts:
+  enc:
+  export:
+  mibs:
+  modules:
+  snmptraps:
+  ssh_keys:
+  ssl_certs:
+  ssl_ca:
+  ssl_keys:
+  db:
+  web:
+  grafana_lib:
+  grafana_log:
